@@ -57,12 +57,15 @@ def deploy_shadow(sha: str, shadow_port: int) -> str:
     return shadow_name
 
 
-def health_check(shadow_port: int) -> bool:
-    """Delegates to Phase 3's retry script. Its exit code is the
-    entire decision signal for promote vs rollback."""
+def health_check(shadow_name: str) -> bool:
+    """Uses the container's name over the Docker network, not
+    localhost — Jenkins runs `docker run` against the host's Docker
+    daemon via the mounted socket, making shadow containers SIBLINGS
+    of Jenkins, not children. localhost inside Jenkins' own network
+    namespace can't reach them; the shared Docker network can."""
     result = run([
         sys.executable, "scripts/healthcheck_retry.py",
-        "--url", f"http://localhost:{shadow_port}/health/",
+        "--url", f"http://{shadow_name}:8000/health/",
         "--retries", "10", "--delay", "3",
     ], check=False)
     print(result.stdout)
@@ -119,8 +122,7 @@ def main():
     args = parser.parse_args()
 
     shadow_name = deploy_shadow(args.sha, args.shadow_port)
-    healthy = health_check(args.shadow_port)
-
+    healthy = health_check(shadow_name)  
     if healthy:
         promote(shadow_name, args.sha)
         sys.exit(0)
