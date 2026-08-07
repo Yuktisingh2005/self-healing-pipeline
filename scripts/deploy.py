@@ -11,10 +11,14 @@ import argparse
 import subprocess
 import sys
 import time
+import urllib.request
+import json
 
 NETWORK = "shp-network"
 NGINX_CONF_PATH = "nginx/nginx.conf"
 IMAGE_NAME = "self-healing-pipeline"
+
+EVENTS_API_URL = "http://shp-app-live:8000/api/events/"
 
 DB_ENV = [
     "-e", "DB_NAME=pipelinedb",
@@ -105,6 +109,7 @@ def promote(shadow_name: str, sha: str):
     if old_live_exists:
         run(["docker", "rm", "-f", "shp-app-retiring"])
 
+    report_event(sha, "promoted")
     print(f"PROMOTED: {sha} is now live")
 
 
@@ -112,7 +117,29 @@ def rollback(shadow_name: str, sha: str):
     """New container failed health checks. Kill it. The live
     container was never touched, so this is the entire rollback."""
     run(["docker", "rm", "-f", shadow_name])
+    report_event(sha, "rolled_back", reason="Health check failed after retries")
     print(f"ROLLED BACK: {sha} failed health checks, previous version remains live")
+
+
+def report_event(git_sha: str, status: str, reason: str = None):
+    """POSTs a deployment result to the Events API. Failures here
+    are logged but never crash the pipeline — a broken events log
+    should never block or falsely fail a real deploy decision."""
+    payload = {"git_sha": git_sha, "status": status}
+    if reason:
+        payload["reason"] = reason
+
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            EVENTS_API_URL, data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            print(f"Event reported: {resp.status}")
+    except Exception as e:
+        print(f"WARNING: failed to report event: {e}")
 
 
 def main():
