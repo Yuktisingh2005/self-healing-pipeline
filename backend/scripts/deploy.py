@@ -85,10 +85,15 @@ def health_check(shadow_name: str) -> bool:
 def promote(shadow_name: str, sha: str):
     """New container proved healthy. Rewrite Nginx's upstream to
     point at it, reload Nginx, then retire the old live container."""
+
+    # Defensive cleanup: if a previous run crashed after renaming to
+    # "retiring" but before removing it, that name would still be
+    # taken and break this rename. Always ensure it's free first.
+    if container_exists("shp-app-retiring"):
+        run(["docker", "rm", "-f", "shp-app-retiring"])
+
     old_live_exists = container_exists("shp-app-live")
 
-    # Rename shadow -> live BEFORE rewriting Nginx config, so the
-    # hostname Nginx will proxy to already resolves on the network.
     if old_live_exists:
         run(["docker", "rename", "shp-app-live", "shp-app-retiring"])
 
