@@ -18,7 +18,7 @@ import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 NETWORK = "shp-network"
-NGINX_CONF_PATH = "nginx/nginx.conf"
+NGINX_CONF_PATH = os.path.join(SCRIPT_DIR, "..", "nginx", "nginx.conf")
 IMAGE_NAME = "self-healing-pipeline"
 
 EVENTS_API_URL = "http://shp-app-live:8000/api/events/"
@@ -157,8 +157,14 @@ def main():
     healthy = health_check(shadow_name)
 
     if healthy:
-        promote(shadow_name, args.sha)
-        sys.exit(0)
+        try:
+            promote(shadow_name, args.sha)
+            sys.exit(0)
+        except Exception as e:
+            print(f"CRITICAL: promotion crashed partway through: {e}")
+            print("Manual intervention may be required — check `docker ps` "
+                  "and Nginx config state directly.")
+            sys.exit(2)
     else:
         rollback(shadow_name, args.sha)
         sys.exit(1)
