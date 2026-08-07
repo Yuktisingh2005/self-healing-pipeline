@@ -74,7 +74,7 @@ def health_check(shadow_name: str) -> bool:
     namespace can't reach them; the shared Docker network can."""
     retry_script = os.path.join(SCRIPT_DIR, "healthcheck_retry.py")
     result = run([
-        sys.executable, "scripts/healthcheck_retry.py",
+        sys.executable, retry_script,
         "--url", f"http://{shadow_name}:8000/health/",
         "--retries", "10", "--delay", "3",
     ], check=False)
