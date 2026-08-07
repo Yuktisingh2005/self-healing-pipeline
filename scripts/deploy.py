@@ -42,9 +42,12 @@ def container_exists(name: str) -> bool:
     return name in result.stdout.strip().splitlines()
 
 
-def deploy_shadow(sha: str, shadow_port: int) -> str:
-    """Starts the new SHA-tagged image as a shadow container on its
-    own port. Does NOT touch the live container."""
+def deploy_shadow(sha: str) -> str:
+    """No host port is published — the shadow container only needs
+    to be reachable via the Docker network name (used by the health
+    check and by Nginx after promotion), never via localhost. This
+    avoids permanent port collisions once a shadow gets promoted and
+    keeps whatever port it originally had."""
     shadow_name = f"shp-app-{sha}"
 
     if container_exists(shadow_name):
@@ -53,7 +56,6 @@ def deploy_shadow(sha: str, shadow_port: int) -> str:
     run([
         "docker", "run", "--name", shadow_name,
         "--network", NETWORK,
-        "-p", f"{shadow_port}:8000",
         *DB_ENV,
         "-e", f"GIT_SHA={sha}",
         "-d", f"{IMAGE_NAME}:{sha}",
@@ -145,11 +147,11 @@ def report_event(git_sha: str, status: str, reason: str = None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sha", required=True)
-    parser.add_argument("--shadow-port", type=int, default=8092)
     args = parser.parse_args()
 
-    shadow_name = deploy_shadow(args.sha, args.shadow_port)
-    healthy = health_check(shadow_name)  
+    shadow_name = deploy_shadow(args.sha)
+    healthy = health_check(shadow_name)
+
     if healthy:
         promote(shadow_name, args.sha)
         sys.exit(0)
