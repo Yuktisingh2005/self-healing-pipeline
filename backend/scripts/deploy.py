@@ -13,6 +13,9 @@ import sys
 import time
 import urllib.request
 import json
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 NETWORK = "shp-network"
 NGINX_CONF_PATH = "nginx/nginx.conf"
@@ -69,6 +72,7 @@ def health_check(shadow_name: str) -> bool:
     daemon via the mounted socket, making shadow containers SIBLINGS
     of Jenkins, not children. localhost inside Jenkins' own network
     namespace can't reach them; the shared Docker network can."""
+    retry_script = os.path.join(SCRIPT_DIR, "healthcheck_retry.py")
     result = run([
         sys.executable, "scripts/healthcheck_retry.py",
         "--url", f"http://{shadow_name}:8000/health/",
