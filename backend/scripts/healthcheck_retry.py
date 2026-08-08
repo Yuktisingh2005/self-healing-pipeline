@@ -64,6 +64,18 @@ def main():
         if attempt < args.retries:
             time.sleep(args.delay)
 
+    # Build a specific, human-readable reason from whatever the last
+    # attempt actually returned — not a generic message. This is what
+    # the dashboard will eventually show as "why did this fail."
+    last_checks = body.get("checks", {}) if isinstance(body, dict) else {}
+    if last_checks.get("db_error"):
+        final_reason = f"Database unreachable: {last_checks['db_error']}"
+    elif "error" in body:
+        final_reason = f"Connection error: {body['error']}"
+    else:
+        final_reason = "App did not return a healthy response in time"
+
+    print(f"FINAL_REASON: {final_reason}")
     print("HEALTH CHECK FAILED after all retries")
     sys.exit(1)
 
