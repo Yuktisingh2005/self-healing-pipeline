@@ -66,12 +66,11 @@ def deploy_shadow(sha: str) -> str:
     return shadow_name
 
 
-def health_check(shadow_name: str) -> bool:
-    """Uses the container's name over the Docker network, not
-    localhost — Jenkins runs `docker run` against the host's Docker
-    daemon via the mounted socket, making shadow containers SIBLINGS
-    of Jenkins, not children. localhost inside Jenkins' own network
-    namespace can't reach them; the shared Docker network can."""
+def health_check(shadow_name: str) -> tuple[bool, str | None]:
+    """Returns (healthy, failure_reason). failure_reason is None when
+    healthy — it's only meaningful on failure, extracted from the
+    retry script's FINAL_REASON line so the dashboard can show the
+    real cause instead of a generic message."""
     retry_script = os.path.join(SCRIPT_DIR, "healthcheck_retry.py")
     result = run([
         sys.executable, retry_script,
@@ -79,7 +78,17 @@ def health_check(shadow_name: str) -> bool:
         "--retries", "10", "--delay", "3",
     ], check=False)
     print(result.stdout)
-    return result.returncode == 0
+
+    if result.returncode == 0:
+        return True, None
+
+    reason = "Health check failed after retries"
+    for line in result.stdout.splitlines():
+        if line.startswith("FINAL_REASON: "):
+            reason = line.replace("FINAL_REASON: ", "").strip()
+            break
+
+    return False, reason
 
 
 def promote(shadow_name: str, sha: str):
@@ -124,11 +133,11 @@ def promote(shadow_name: str, sha: str):
     print(f"PROMOTED: {sha} is now live")
 
 
-def rollback(shadow_name: str, sha: str):
+def rollback(shadow_name: str, sha: str, reason: str):
     """New container failed health checks. Kill it. The live
     container was never touched, so this is the entire rollback."""
     run(["docker", "rm", "-f", shadow_name])
-    report_event(sha, "rolled_back", reason="Health check failed after retries")
+    report_event(sha, "rolled_back", reason=reason)
     print(f"ROLLED BACK: {sha} failed health checks, previous version remains live")
 
 
@@ -159,7 +168,7 @@ def main():
     args = parser.parse_args()
 
     shadow_name = deploy_shadow(args.sha)
-    healthy = health_check(shadow_name)
+    healthy, failure_reason = health_check(shadow_name)
 
     if healthy:
         try:
@@ -171,9 +180,8 @@ def main():
                   "and Nginx config state directly.")
             sys.exit(2)
     else:
-        rollback(shadow_name, args.sha)
+        rollback(shadow_name, args.sha, failure_reason)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

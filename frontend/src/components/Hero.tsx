@@ -15,11 +15,11 @@ export default function Hero() {
       </motion.p>
 
       <motion.h1
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="font-display font-bold text-5xl md:text-7xl leading-[1.05] fade-edges"
-      >
+  initial={{ opacity: 0, y: 24 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+  className="font-display font-bold text-6xl md:text-8xl lg:text-9xl leading-[1.02] fade-edges"
+>
         Self-healing
         <br />
         <span className="gradient-text">CI/CD pipeline</span>
