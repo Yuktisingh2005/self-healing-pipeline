@@ -31,7 +31,7 @@ export default function Hero() {
         transition={{ duration: 0.7, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
         className="mt-8 max-w-xl text-[var(--text-secondary)] text-lg"
       >
-        Every deploy is shadow tested against a live health check before it
+        Every deploy is shadow-tested against a live health check before it
         ever reaches production. If it fails, it never gets the chance to.
       </motion.p>
     </section>
