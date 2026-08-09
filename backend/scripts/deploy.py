@@ -61,6 +61,7 @@ def deploy_shadow(sha: str) -> str:
         "--network", NETWORK,
         *DB_ENV,
         "-e", f"GIT_SHA={sha}",
+        "-e", "SIMULATE_FAILURE=true",
         "-d", f"{IMAGE_NAME}:{sha}",
     ])
     return shadow_name
