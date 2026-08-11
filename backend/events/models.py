@@ -19,7 +19,7 @@ class DeploymentEvent(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-timestamp"]  # newest first, matches how a dashboard wants history
+        ordering = ["-timestamp"] 
 
     def __str__(self):
         return f"{self.git_sha} - {self.status} at {self.timestamp}"
