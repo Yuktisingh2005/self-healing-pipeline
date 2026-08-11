@@ -85,7 +85,10 @@ backend/          Django app, health endpoint, Events API, deploy scripts, Docke
 
 frontend/          Next.js dashboard (live status + deployment timeline)
 
-Jenkinsfile         (configured directly in the Jenkins job)
+Jenkinsfile         Pipeline-as-code — Jenkins reads this file directly from
+                    the repo via "Pipeline script from SCM", so the pipeline
+                    logic is version-controlled like everything else, not
+                    hidden in Jenkins' UI.
 ```
 
 ## Running it locally
@@ -122,11 +125,14 @@ echo "NEXT_PUBLIC_API_URL=http://localhost:8100" > .env.local
 npm run dev
 ```
 
-To actually run deploys, point a Jenkins pipeline at this repo with a Jenkinsfile that runs:
-```
+To actually run deploys, create a Jenkins pipeline job pointed at this repo, using **"Pipeline script from SCM"**:
+- Repository URL: this repo's `.git` URL
+- Branch: `*/main`
+- Script Path: `Jenkinsfile` (already in the repo root — Jenkins reads it directly, no need to paste pipeline code into the UI)
+
+The Jenkinsfile itself just runs:
 docker build -t self-healing-pipeline:$GIT_SHA ./backend
 python3 backend/scripts/deploy.py --sha $GIT_SHA
-```
 
 ## Testing a rollback
 
