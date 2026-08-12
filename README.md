@@ -91,49 +91,6 @@ Jenkinsfile         Pipeline-as-code — Jenkins reads this file directly from
                     hidden in Jenkins' UI.
 ```
 
-## Running it locally
-
-Requires Docker Desktop, Python 3.12+, and Node.js.
-
-```bash
-# Postgres
-docker network create shp-network
-docker run --name pg-dev -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=pipelinedb --network shp-network -d postgres:16
-
-# Build and run the app
-cd backend
-docker build -t self-healing-pipeline:local .
-docker run --name shp-app-live --network shp-network \
-  -e DB_NAME=pipelinedb -e DB_USER=postgres -e DB_PASSWORD=devpassword \
-  -e DB_HOST=pg-dev -e DB_PORT=5432 -e GIT_SHA=local \
-  -d self-healing-pipeline:local
-
-docker exec shp-app-live python manage.py migrate
-
-# Nginx
-docker run --name shp-nginx --network shp-network -p 8100:80 \
-  -v $(pwd)/nginx/nginx.conf:/etc/nginx/nginx.conf:ro -d nginx:alpine
-
-curl http://localhost:8100/health/
-```
-
-```bash
-# Dashboard
-cd frontend
-npm install
-echo "NEXT_PUBLIC_API_URL=http://localhost:8100" > .env.local
-npm run dev
-```
-
-To actually run deploys, create a Jenkins pipeline job pointed at this repo, using **"Pipeline script from SCM"**:
-- Repository URL: this repo's `.git` URL
-- Branch: `*/main`
-- Script Path: `Jenkinsfile` (already in the repo root — Jenkins reads it directly, no need to paste pipeline code into the UI)
-
-The Jenkinsfile itself just runs:
-docker build -t self-healing-pipeline:$GIT_SHA ./backend
-python3 backend/scripts/deploy.py --sha $GIT_SHA
-
 ## Testing a rollback
 
 Add `-e SIMULATE_FAILURE=true` to the shadow container's env vars in `deploy.py`'s `deploy_shadow()` function, push, and trigger a build — the health check will fail on the DB check by design, and the pipeline will roll back automatically while the previous version keeps serving traffic.
@@ -143,3 +100,10 @@ Add `-e SIMULATE_FAILURE=true` to the shadow container's env vars in `deploy.py`
 - Currently wired to this specific app — the pipeline *mechanism* is generic, but the repo URL, Dockerfile, env vars, and health-check path are hardcoded rather than parameterized. Turning these into CLI arguments would make it reusable across projects.
 - The Events API's write endpoint is unauthenticated, which is fine for this demo scope but would need a shared secret before running long-term on a public server.
 - `ALLOWED_HOSTS = ['*']` is a deliberate tradeoff for container-to-container health checks over a dynamic hostname — would be scoped down for a longer-lived deployment.
+
+---
+
+## 👤 Author
+
+Built by **Yukti Singh**
+📧 yuktisingh2005@gmail.com
